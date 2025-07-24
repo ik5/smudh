@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"slices"
@@ -14,62 +13,6 @@ import (
 	"github.com/ik5/gostrutils"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
-)
-
-type Encoding byte
-
-// UDH Message Encoding
-const (
-	// gsm-7bit coding
-	GSM Encoding = iota
-
-	// ASCII/IA5 coding
-	ASCII
-
-	// 8-bit binary coding
-	Binary8Bit1
-
-	// iso-8859-1 coding
-	Latin1
-
-	// 8-bit binary coding
-	Binary8Bit2
-
-	// JIS (X 0208-1990) coding
-	JIS
-
-	// iso-8859-5 coding
-	Cyrillic
-
-	// iso-8859-8 coding
-	Hebrew
-
-	// UCS2 (UTF-16BE) coding
-	UCS2
-
-	// Pictogram - Cellular icons support
-	Pictogram
-
-	// ISO-2022-JP (Music Codes)
-	ISO2022JP
-
-	// Not commonly used
-	Reserved1
-
-	// Not commonly used
-	Reserved2
-
-	// Extended Kanji JIS (X 0212-1990)
-	EXTJIS
-
-	// KS C 5601
-	KSC5601
-
-	//GSM 7-bit (extended) - GSM 7-bit with national language extensions
-	GSMEdtended
-
-	// support for UTF8 - hardly used
-	UTF8
 )
 
 // Message represents a hex-encoded SMS message
@@ -119,19 +62,6 @@ type Messages struct {
 
 const rfc822Element byte = 0x20
 
-var (
-	ErrHexStringMustHaveAnEvenNumberOfChars      = errors.New("hex string must have an even number of characters")
-	ErrBinaryTextLengthIsNotEvenForUTF16Decoding = errors.New("binary text length is not even for UTF-16 decoding")
-	ErrInputTooShortForUDH                       = errors.New("input too short for UDH")
-	ErrUDHLengthExceedsInputLength               = errors.New("UDH length exceeds input length")
-	ErrMessageNotComplete                        = errors.New("message is not complete yet")
-	ErrMissingPart                               = errors.New("missing part")
-	ErrInvalidReferenceNumber                    = errors.New("invalid reference number")
-	ErrUnsupportedIEI                            = errors.New("unsupported IEI")
-	ErrUnsupportedEncoding                       = errors.New("unsupported encoding")
-	ErrUnknownEncoding                           = errors.New("unknown encoding")
-)
-
 func (msg Message) ParseElements(encoding Encoding) (*MessageElements, error) {
 	if len(msg)%2 != 0 {
 		return nil, ErrHexStringMustHaveAnEvenNumberOfChars
@@ -180,40 +110,49 @@ func (msg Message) ParseElements(encoding Encoding) (*MessageElements, error) {
 		}
 	}
 
-	// TODO add support for all encodings
-	switch encoding {
-	case GSM, GSMEdtended:
-		elements.Message = gostrutils.GSM0338ToUTF8(string(elements.RawMessage))
-
-	case ASCII, Latin1, UTF8:
-		elements.Message = string(elements.RawMessage)
-
-	case Binary8Bit1, Binary8Bit2:
-		elements.Message = hex.EncodeToString(elements.RawMessage)
-
-	case UCS2:
-		if len(elements.RawMessage)%2 != 0 {
-			return nil, ErrBinaryTextLengthIsNotEvenForUTF16Decoding
-		}
-
-		decoder := unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM).NewDecoder()
-		reader := transform.NewReader(strings.NewReader(string(elements.RawMessage)), decoder)
-		utf8Bytes, err := io.ReadAll(reader)
-		if err != nil {
-			return nil, fmt.Errorf("%w", err)
-		}
-
-		elements.Message = string(utf8Bytes)
-
-	case Cyrillic, Hebrew, JIS, ISO2022JP, EXTJIS, KSC5601, Pictogram:
-		// TODO: support these as well
-		return nil, ErrUnsupportedEncoding
-
-	default:
-		return nil, ErrUnknownEncoding
+	err = elements.setMessage()
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
 	}
 
 	return &elements, nil
+}
+
+func (elem *MessageElements) setMessage() error {
+	switch elem.Encoding {
+	case GSM, GSMEdtended:
+		elem.Message = gostrutils.GSM0338ToUTF8(string(elem.RawMessage))
+
+	case ASCII, Latin1, UTF8:
+		elem.Message = string(elem.RawMessage)
+
+	case Binary8Bit1, Binary8Bit2:
+		elem.Message = hex.EncodeToString(elem.RawMessage)
+
+	case UCS2:
+		if len(elem.RawMessage)%2 != 0 {
+			return ErrBinaryTextLengthIsNotEvenForUTF16Decoding
+		}
+
+		decoder := unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM).NewDecoder()
+		reader := transform.NewReader(strings.NewReader(string(elem.RawMessage)), decoder)
+		utf8Bytes, err := io.ReadAll(reader)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		elem.Message = string(utf8Bytes)
+
+	case Cyrillic, Hebrew, JIS, ISO2022JP, EXTJIS, KSC5601, Pictogram:
+		// TODO: support these as well
+		return ErrUnsupportedEncoding
+
+	default:
+		return ErrUnknownEncoding
+
+	}
+
+	return nil
 }
 
 func (elem MessageElements) IsSingleMessage() bool {
