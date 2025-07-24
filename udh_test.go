@@ -1,80 +1,78 @@
 package udh_test
 
 import (
-        "testing"
+	"testing"
 
-        "github.com/google/go-cmp/cmp"
-        "github.com/google/go-cmp/cmp/cmpopts"
-        "github.com/ik5/udh/udh
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	udhmessage "github.com/ik5/udh"
 )
 
 type messageParsingTestFixtures struct {
-        inputMessage     udh.Message
-        encoding         udh.Encoding
-        expectedElements *udh.MessageElements
-        err              error
-        incomplete       bool
+	inputMessage     udhmessage.Message
+	encoding         udhmessage.Encoding
+	expectedElements *udhmessage.MessageElements
+	err              error
+	incomplete       bool
 }
 
 var messageParsingTests = []messageParsingTestFixtures{
-        {
-                inputMessage: udh.Message("05000312010168656C6C6F20776F726C64"),
-                encoding:     udh.GSM,
-                expectedElements: &udh.MessageElements{
-                        HeaderLength:  0x05,
-                        Element:       0x00,
-                        ElementLength: 0x03,
-                        Reference:     []byte{0x12},
-                        TotalParts:    0x01,
-                        CurrentPart:   0x01,
-                        RawMessage:    []byte("hello world"),
-                        Message:       "hello world",
-                },
-                err: nil,
-        },
-
-        {
-                inputMessage: udh.Message("05000313010105E905DC05D505DD002005E205D505DC05DD"),
-                encoding:     udh.UCS2,
-                expectedElements: &udh.MessageElements{
-                        HeaderLength:  0x05,
-                        Element:       0x00,
-                        ElementLength: 0x03,
-                        Reference:     []byte{0x13},
-                        TotalParts:    0x01,
-                        CurrentPart:   0x01,
-                        RawMessage: []byte{
-                                0x05, 0xE9, 0x05, 0xDC, 0x05, 0xD5, 0x05, 0xDD, 0x00,
-                                0x20, 0x05, 0xE2, 0x05, 0xD5, 0x05, 0xDC, 0x05, 0xDD,
-                        },
-                        Message: "שלום עולם",
-                },
-                err: nil,
-        },
-
-        {
-                inputMessage: udh.Message("776F726C64"),
-                encoding:     udh.GSM,
-                expectedElements: &udh.MessageElements{
-                        HeaderLength:  0,
-                        Element:       0,
-                        ElementLength: 0,
-                        Reference:     []byte{0},
-                        TotalParts:    0x01,
-                        CurrentPart:   0x01,
-                        RawMessage:    []byte("world"),
-                        Message:       "world",
-                        Standalone:    true,
-                },
-                err: nil,
-        },
-
+	{
+		inputMessage: udhmessage.Message("05000312010168656C6C6F20776F726C64"),
+		encoding:     udhmessage.GSM,
+		expectedElements: &udhmessage.MessageElements{
+			HeaderLength:  0x05,
+			Element:       0x00,
+			ElementLength: 0x03,
+			Reference:     []byte{0x12},
+			TotalParts:    0x01,
+			CurrentPart:   0x01,
+			RawMessage:    []byte("hello world"),
+			Message:       "hello world",
+		},
+		err: nil,
+	},
 
 	{
-		inputMessage: udh.Message("050003A50201546869732069732061206C6F6E676572206D6573736167652074686174206E6565647320746F2062652073706C697420696E746F206D756C7469706C6520706172747320746F2064656D6F6E73747261746520534D5320636F6E636174656E6174696F6E206
-		96E20534D50502070726F746F636F6C20776974682047534D20372D62697420656E636F64696E6720666F722070726F70"),
-		encoding:     udh.GSM,
-		expectedElements: &udh.MessageElements{
+		inputMessage: udhmessage.Message("05000313010105E905DC05D505DD002005E205D505DC05DD"),
+		encoding:     udhmessage.UCS2,
+		expectedElements: &udhmessage.MessageElements{
+			HeaderLength:  0x05,
+			Element:       0x00,
+			ElementLength: 0x03,
+			Reference:     []byte{0x13},
+			TotalParts:    0x01,
+			CurrentPart:   0x01,
+			RawMessage: []byte{
+				0x05, 0xE9, 0x05, 0xDC, 0x05, 0xD5, 0x05, 0xDD, 0x00,
+				0x20, 0x05, 0xE2, 0x05, 0xD5, 0x05, 0xDC, 0x05, 0xDD,
+			},
+			Message: "שלום עולם",
+		},
+		err: nil,
+	},
+
+	{
+		inputMessage: udhmessage.Message("776F726C64"),
+		encoding:     udhmessage.GSM,
+		expectedElements: &udhmessage.MessageElements{
+			HeaderLength:  0,
+			Element:       0,
+			ElementLength: 0,
+			Reference:     []byte{0},
+			TotalParts:    0x01,
+			CurrentPart:   0x01,
+			RawMessage:    []byte("world"),
+			Message:       "world",
+			Standalone:    true,
+		},
+		err: nil,
+	},
+
+	{
+		inputMessage: udhmessage.Message("050003A50201546869732069732061206C6F6E676572206D6573736167652074686174206E6565647320746F2062652073706C697420696E746F206D756C7469706C6520706172747320746F2064656D6F6E73747261746520534D5320636F6E636174656E6174696F6E20696E20534D50502070726F746F636F6C20776974682047534D20372D62697420656E636F64696E6720666F722070726F70"),
+		encoding:     udhmessage.GSM,
+		expectedElements: &udhmessage.MessageElements{
 			HeaderLength:  0x05,
 			Element:       0x00,
 			ElementLength: 0x03,
@@ -98,29 +96,26 @@ var messageParsingTests = []messageParsingTestFixtures{
 	},
 
 	{
-		inputMessage: udh.Message("050003A5020265722074657374696E67"),
-						 encoding:     udh.GSM,
-						 expectedElements: &udh.MessageElements{
-							 HeaderLength:  0x05,
-				   Element:       0x00,
-				   ElementLength: 0x03,
-				   Reference:     []byte{0xA5},
-				   TotalParts:    0x02,
-				   CurrentPart:   0x02,
-				   RawMessage:    []byte{0x65, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74, 0x69, 0x6e, 0x67},
-				   Message:       "er testing",
-						 },
-						 err: nil,
+		inputMessage: udhmessage.Message("050003A5020265722074657374696E67"),
+		encoding:     udhmessage.GSM,
+		expectedElements: &udhmessage.MessageElements{
+			HeaderLength:  0x05,
+			Element:       0x00,
+			ElementLength: 0x03,
+			Reference:     []byte{0xA5},
+			TotalParts:    0x02,
+			CurrentPart:   0x02,
+			RawMessage:    []byte{0x65, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74, 0x69, 0x6e, 0x67},
+			Message:       "er testing",
+		},
+		err: nil,
 	},
-
-
 
 	{
 		//
-		inputMessage: udh.Message("050003B7050105D405D505D305E205D4002005D005E805D505DB05D4002005D105E205D105E805D905EA002005E905E605E805D905DB05D4002005DC05D405EA05D705DC05E7002005DC05D705DE05D905E905D405D4002005D705DC05E705D905DD002005DB05D305D9002
-		005DC05D105D305D505E7002005D005EA002005DE05E005D205E005D505DF002005D405E905E805E905D505E8"),
-		encoding:     udh.UCS2,
-		expectedElements: &udh.MessageElements{
+		inputMessage: udhmessage.Message("050003B7050105D405D505D305E205D4002005D005E805D505DB05D4002005D105E205D105E805D905EA002005E905E605E805D905DB05D4002005DC05D405EA05D705DC05E7002005DC05D705DE05D905E905D405D4002005D705DC05E705D905DD002005DB05D305D9002005DC05D105D305D505E7002005D005EA002005DE05E005D205E005D505DF002005D405E905E805E905D505E8"),
+		encoding:     udhmessage.UCS2,
+		expectedElements: &udhmessage.MessageElements{
 			HeaderLength:  0x05,
 			Element:       0x00,
 			ElementLength: 0x03,
@@ -143,12 +138,10 @@ var messageParsingTests = []messageParsingTestFixtures{
 		err: nil,
 	},
 
-
 	{
-		inputMessage: udh.Message("050003B70502002005E905DC002005D405D505D305E205D505EA00200053004D0053002005D105D005DE05E605E205D505EA002005E405E805D505D805D505E705D505DC00200053004D00500050002005E205DD002005E705D905D305D505D300200055004300530032002
-		005DC05E605D505E805DA002005D105D305D905E705D4002005DE05E705D905E405D4002005E905DC002005D405DE05E205E805DB05EA002005D505D405EA05DE05D905DB05D4"),
-		encoding:     udh.UCS2,
-		expectedElements: &udh.MessageElements{
+		inputMessage: udhmessage.Message("050003B70502002005E905DC002005D405D505D305E205D505EA00200053004D0053002005D105D005DE05E605E205D505EA002005E405E805D505D805D505E705D505DC00200053004D00500050002005E205DD002005E705D905D305D505D300200055004300530032002005DC05E605D505E805DA002005D105D305D905E705D4002005DE05E705D905E405D4002005E905DC002005D405DE05E205E805DB05EA002005D505D405EA05DE05D905DB05D4"),
+		encoding:     udhmessage.UCS2,
+		expectedElements: &udhmessage.MessageElements{
 			HeaderLength:  0x05,
 			Element:       0x00,
 			ElementLength: 0x03,
@@ -156,20 +149,17 @@ var messageParsingTests = []messageParsingTestFixtures{
 			TotalParts:    0x05,
 			CurrentPart:   0x02,
 			RawMessage: []byte{
-				0x0, 0x20, 0x5, 0xe9, 0x5, 0xdc, 0x0, 0x20, 0x5, 0xd4, 0x5, 0xd5, 0x5, 0xd3, 0x5, 0xe2, 0x5, 0xd5, 0x5, 0xea, 0x0, 0x20, 0x0, 0x53, 0x0, 0x4d, 0x0, 0x53, 0x0, 0x20, 0x5, 0xd1, 0x5, 0xd0, 0x5, 0xde, 0x5, 0xe6, 0x5, 0xe2, 0x5, 0xd5, 0x
-				5, 0xea, 0x0, 0x20, 0x5, 0xe4, 0x5, 0xe8, 0x5, 0xd5, 0x5, 0xd8, 0x5, 0xd5, 0x5, 0xe7, 0x5, 0xd5, 0x5, 0xdc, 0x0, 0x20, 0x0, 0x53, 0x0, 0x4d, 0x0, 0x50, 0x0, 0x50, 0x0, 0x20, 0x5, 0xe2, 0x5, 0xdd, 0x0, 0x20, 0x5, 0xe7, 0x5, 0xd9, 0x5, 0xd3, 0x5, 0xd5, 0x5, 0xd3, 0x0
-				, 0x20, 0x0, 0x55, 0x0, 0x43, 0x0, 0x53, 0x0, 0x32, 0x0, 0x20, 0x5, 0xdc, 0x5, 0xe6, 0x5, 0xd5, 0x5, 0xe8, 0x5, 0xda, 0x0, 0x20, 0x5, 0xd1, 0x5, 0xd3, 0x5, 0xd9, 0x5, 0xe7, 0x5, 0xd4, 0x0, 0x20, 0x5, 0xde, 0x5, 0xe7, 0x5, 0xd9, 0x5, 0xe4, 0x5, 0xd4, 0x0, 0x20, 0x5,
-				0xe9, 0x5, 0xdc, 0x0, 0x20, 0x5, 0xd4, 0x5, 0xde, 0x5, 0xe2, 0x5, 0xe8, 0x5, 0xdb, 0x5, 0xea, 0x0, 0x20, 0x5, 0xd5, 0x5, 0xd4, 0x5, 0xea, 0x5, 0xde, 0x5, 0xd9, 0x5, 0xdb, 0x5, 0xd4,
+				0x0, 0x20, 0x5, 0xe9, 0x5, 0xdc, 0x0, 0x20, 0x5, 0xd4, 0x5, 0xd5, 0x5, 0xd3, 0x5, 0xe2, 0x5, 0xd5, 0x5, 0xea, 0x0, 0x20, 0x0, 0x53, 0x0, 0x4d, 0x0, 0x53, 0x0, 0x20, 0x5, 0xd1, 0x5, 0xd0, 0x5, 0xde, 0x5, 0xe6, 0x5, 0xe2, 0x5, 0xd5, 0x5, 0xea, 0x0, 0x20, 0x5, 0xe4, 0x5, 0xe8, 0x5, 0xd5, 0x5, 0xd8, 0x5, 0xd5, 0x5, 0xe7, 0x5, 0xd5, 0x5, 0xdc, 0x0, 0x20, 0x0, 0x53, 0x0, 0x4d, 0x0, 0x50, 0x0, 0x50, 0x0, 0x20, 0x5, 0xe2, 0x5, 0xdd, 0x0, 0x20, 0x5, 0xe7, 0x5, 0xd9, 0x5, 0xd3, 0x5, 0xd5, 0x5, 0xd3, 0x0, 0x20, 0x0, 0x55, 0x0, 0x43, 0x0, 0x53, 0x0, 0x32, 0x0, 0x20, 0x5, 0xdc, 0x5, 0xe6, 0x5, 0xd5, 0x5, 0xe8, 0x5, 0xda, 0x0, 0x20, 0x5, 0xd1, 0x5, 0xd3, 0x5, 0xd9, 0x5, 0xe7, 0x5, 0xd4, 0x0, 0x20, 0x5, 0xde, 0x5, 0xe7, 0x5, 0xd9, 0x5, 0xe4, 0x5, 0xd4, 0x0, 0x20, 0x5, 0xe9, 0x5, 0xdc, 0x0, 0x20, 0x5, 0xd4, 0x5, 0xde, 0x5, 0xe2, 0x5, 0xe8, 0x5, 0xdb, 0x5, 0xea, 0x0, 0x20, 0x5, 0xd5, 0x5, 0xd4, 0x5, 0xea, 0x5, 0xde, 0x5, 0xd9, 0x5, 0xdb, 0x5, 0xd4,
 			},
 			Message: " של הודעות SMS באמצעות פרוטוקול SMPP עם קידוד UCS2 לצורך בדיקה מקיפה של המערכת והתמיכה",
 		},
 		err: nil,
 	},
+
 	{
-		inputMessage: udh.Message("050003B70503002005D105E905E405D505EA002005D605E805D505EA002005DB05DE05D5002005E205D105E805D905EA002005D505E205E805D105D905EA002005D105E905E405D505EA002005D605E805D505EA002005DB05DE05D5002005E205D105E805D905EA002005D
-		505E205E805D105D905EA002005D105E905E405D505EA002005D605E805D505EA002005DB05DE05D5002005E205D105E805D905EA002005D505E205E805D105D905EA"),
-		encoding:     udh.UCS2,
-		expectedElements: &udh.MessageElements{
+		inputMessage: udhmessage.Message("050003B70503002005D105E905E405D505EA002005D605E805D505EA002005DB05DE05D5002005E205D105E805D905EA002005D505E205E805D105D905EA002005D105E905E405D505EA002005D605E805D505EA002005DB05DE05D5002005E205D105E805D905EA002005D505E205E805D105D905EA002005D105E905E405D505EA002005D605E805D505EA002005DB05DE05D5002005E205D105E805D905EA002005D505E205E805D105D905EA"),
+		encoding:     udhmessage.UCS2,
+		expectedElements: &udhmessage.MessageElements{
 			HeaderLength:  0x05,
 			Element:       0x00,
 			ElementLength: 0x03,
@@ -186,7 +176,6 @@ var messageParsingTests = []messageParsingTestFixtures{
 				0x5, 0xd9, 0x5, 0xea, 0x0, 0x20, 0x5, 0xd1, 0x5, 0xe9, 0x5, 0xe4, 0x5, 0xd5, 0x5, 0xea, 0x0, 0x20,
 				0x5, 0xd6, 0x5, 0xe8, 0x5, 0xd5, 0x5, 0xea, 0x0, 0x20, 0x5, 0xdb, 0x5, 0xde, 0x5, 0xd5, 0x0, 0x20,
 				0x5, 0xe2, 0x5, 0xd1, 0x5, 0xe8, 0x5, 0xd9, 0x5, 0xea, 0x0, 0x20, 0x5, 0xd5, 0x5, 0xe2, 0x5, 0xe8,
-
 				0x5, 0xd1, 0x5, 0xd9, 0x5, 0xea,
 			},
 			Message: " בשפות זרות כמו עברית וערבית בשפות זרות כמו עברית וערבית בשפות זרות כמו עברית וערבית",
@@ -195,10 +184,9 @@ var messageParsingTests = []messageParsingTestFixtures{
 	},
 
 	{
-		inputMessage: udh.Message("050003B70504002005D105E905E405D505EA002005D605E805D505EA002005DB05DE05D5002005E205D105E805D905EA002005D505E205E805D105D905EA002005D105E905E405D505EA002005D605E805D505EA002005DB05DE05D5002005E205D105E805D905EA002005D
-		505E205E805D105D905EA002005D105E905E405D505EA002005D605E805D505EA002005DB05DE05D5002005E205D105E805D905EA002005D505E205E805D105D905EA"),
-		encoding:     udh.UCS2,
-		expectedElements: &udh.MessageElements{
+		inputMessage: udhmessage.Message("050003B70504002005D105E905E405D505EA002005D605E805D505EA002005DB05DE05D5002005E205D105E805D905EA002005D505E205E805D105D905EA002005D105E905E405D505EA002005D605E805D505EA002005DB05DE05D5002005E205D105E805D905EA002005D505E205E805D105D905EA002005D105E905E405D505EA002005D605E805D505EA002005DB05DE05D5002005E205D105E805D905EA002005D505E205E805D105D905EA"),
+		encoding:     udhmessage.UCS2,
+		expectedElements: &udhmessage.MessageElements{
 			HeaderLength:  0x05,
 			Element:       0x00,
 			ElementLength: 0x03,
@@ -222,72 +210,71 @@ var messageParsingTests = []messageParsingTestFixtures{
 		err: nil,
 	},
 
-
 	{
-		inputMessage: udh.Message("050003B70505002005D105E905E405D505EA002005D605E805D505EA002005DB05DE05D5002005E205D105E805D905EA002005D505E205E805D105D905EA"),
-						 encoding:     udh.UCS2,
-						 expectedElements: &udh.MessageElements{
-							 HeaderLength:  0x05,
-							 Element:       0x00,
-							 ElementLength: 0x03,
-							 Reference:     []byte{0xB7},
-							 TotalParts:    0x05,
-							 CurrentPart:   0x05,
-							 RawMessage: []byte{
-								 0x0, 0x20, 0x5, 0xd1, 0x5, 0xe9, 0x5, 0xe4, 0x5, 0xd5, 0x5, 0xea, 0x0, 0x20, 0x5, 0xd6, 0x5, 0xe8,
-								 0x5, 0xd5, 0x5, 0xea, 0x0, 0x20, 0x5, 0xdb, 0x5, 0xde, 0x5, 0xd5, 0x0, 0x20, 0x5, 0xe2, 0x5, 0xd1,
-								 0x5, 0xe8, 0x5, 0xd9, 0x5, 0xea, 0x0, 0x20, 0x5, 0xd5, 0x5, 0xe2, 0x5, 0xe8, 0x5, 0xd1, 0x5, 0xd9,
-								 0x5, 0xea,
-							 },
-							 Message: " בשפות זרות כמו עברית וערבית",
-						 },
-						 err: nil,
+		inputMessage: udhmessage.Message("050003B70505002005D105E905E405D505EA002005D605E805D505EA002005DB05DE05D5002005E205D105E805D905EA002005D505E205E805D105D905EA"),
+		encoding:     udhmessage.UCS2,
+		expectedElements: &udhmessage.MessageElements{
+			HeaderLength:  0x05,
+			Element:       0x00,
+			ElementLength: 0x03,
+			Reference:     []byte{0xB7},
+			TotalParts:    0x05,
+			CurrentPart:   0x05,
+			RawMessage: []byte{
+				0x0, 0x20, 0x5, 0xd1, 0x5, 0xe9, 0x5, 0xe4, 0x5, 0xd5, 0x5, 0xea, 0x0, 0x20, 0x5, 0xd6, 0x5, 0xe8,
+				0x5, 0xd5, 0x5, 0xea, 0x0, 0x20, 0x5, 0xdb, 0x5, 0xde, 0x5, 0xd5, 0x0, 0x20, 0x5, 0xe2, 0x5, 0xd1,
+				0x5, 0xe8, 0x5, 0xd9, 0x5, 0xea, 0x0, 0x20, 0x5, 0xd5, 0x5, 0xe2, 0x5, 0xe8, 0x5, 0xd1, 0x5, 0xd9,
+				0x5, 0xea,
+			},
+			Message: " בשפות זרות כמו עברית וערבית",
+		},
+		err: nil,
 	},
 	{
-		inputMessage: udh.Message("0608047539040405d105d105e805db05d4002005d905d505e405d9002005e405d905e005e005e105d905dd002005d105e2002205de"),
-						 encoding:     udh.UCS2,
-						 expectedElements: &udh.MessageElements{
-							 HeaderLength:  0x06,
-							 Element:       0x08,
-							 ElementLength: 0x04,
-							 Reference:     []byte{0x75, 0x39},
-							 TotalParts:    0x04,
-							 CurrentPart:   0x04,
-							 RawMessage: []byte{
-								 0x05, 0xd1, 0x05, 0xd1, 0x05, 0xe8, 0x05, 0xdb, 0x05, 0xd4, 0x00, 0x20, 0x05, 0xd9, 0x05, 0xd5, 0x05,
-								 0xe4, 0x05, 0xd9, 0x00, 0x20, 0x05, 0xe4, 0x05, 0xd9, 0x05, 0xe0, 0x05, 0xe0, 0x05, 0xe1, 0x05, 0xd9,
-								 0x05, 0xdd, 0x00, 0x20, 0x05, 0xd1, 0x05, 0xe2, 0x00, 0x22, 0x05, 0xde,
-							 },
-							 Message: `בברכה יופי פיננסים בע"מ`,
-						 },
-						 err:        nil,
-						 incomplete: true,
+		inputMessage: udhmessage.Message("0608047539040405d105d105e805db05d4002005d905d505e405d9002005e405d905e005e005e105d905dd002005d105e2002205de"),
+		encoding:     udhmessage.UCS2,
+		expectedElements: &udhmessage.MessageElements{
+			HeaderLength:  0x06,
+			Element:       0x08,
+			ElementLength: 0x04,
+			Reference:     []byte{0x75, 0x39},
+			TotalParts:    0x04,
+			CurrentPart:   0x04,
+			RawMessage: []byte{
+				0x05, 0xd1, 0x05, 0xd1, 0x05, 0xe8, 0x05, 0xdb, 0x05, 0xd4, 0x00, 0x20, 0x05, 0xd9, 0x05, 0xd5, 0x05,
+				0xe4, 0x05, 0xd9, 0x00, 0x20, 0x05, 0xe4, 0x05, 0xd9, 0x05, 0xe0, 0x05, 0xe0, 0x05, 0xe1, 0x05, 0xd9,
+				0x05, 0xdd, 0x00, 0x20, 0x05, 0xd1, 0x05, 0xe2, 0x00, 0x22, 0x05, 0xde,
+			},
+			Message: `בברכה יופי פיננסים בע"מ`,
+		},
+		err:        nil,
+		incomplete: true,
 	},
 
 	{
-		inputMessage: udh.Message("05e205d105e805d905ea002005e705e905d4002005e905e405d4"),
-						 encoding:     udh.UCS2,
-						 expectedElements: &udh.MessageElements{
-							 HeaderLength:  0,
-							 Element:       0,
-							 ElementLength: 0,
-							 Reference:     []byte{0},
-							 TotalParts:    1,
-							 CurrentPart:   1,
-							 RawMessage: []byte{
-								 0x05, 0xe2, 0x05, 0xd1, 0x05, 0xe8, 0x05, 0xd9, 0x05, 0xea, 0x00, 0x20, 0x05, 0xe7, 0x05, 0xe9,
-								 0x05, 0xd4, 0x00, 0x20, 0x05, 0xe9, 0x05, 0xe4, 0x05, 0xd4,
-							 },
-							 Message:    "עברית קשה שפה",
-							 Standalone: true,
-						 },
-						 err:        nil,
-						 incomplete: false,
+		inputMessage: udhmessage.Message("05e205d105e805d905ea002005e705e905d4002005e905e405d4"),
+		encoding:     udhmessage.UCS2,
+		expectedElements: &udhmessage.MessageElements{
+			HeaderLength:  0,
+			Element:       0,
+			ElementLength: 0,
+			Reference:     []byte{0},
+			TotalParts:    1,
+			CurrentPart:   1,
+			RawMessage: []byte{
+				0x05, 0xe2, 0x05, 0xd1, 0x05, 0xe8, 0x05, 0xd9, 0x05, 0xea, 0x00, 0x20, 0x05, 0xe7, 0x05, 0xe9,
+				0x05, 0xd4, 0x00, 0x20, 0x05, 0xe9, 0x05, 0xe4, 0x05, 0xd4,
+			},
+			Message:    "עברית קשה שפה",
+			Standalone: true,
+		},
+		err:        nil,
+		incomplete: false,
 	},
 }
 
 func TestMessageParsing(t *testing.T) {
-	messages := udh.InitMessages()
+	messages := udhmessage.InitMessages()
 
 	incomplete := map[string]bool{}
 
@@ -301,7 +288,6 @@ func TestMessageParsing(t *testing.T) {
 
 				t2.Errorf("%d. have err: %+#v | test.Err: %#+v", idx, err, test.err)
 			}
-
 
 			if elements == nil {
 				if test.expectedElements == nil {
