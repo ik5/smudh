@@ -283,6 +283,41 @@ var messageParsingTests = []messageParsingTestFixtures{
 		err:        nil,
 		incomplete: false,
 	},
+
+	{
+		inputMessage: udh.Message("776F726C64"),
+		encoding:     udh.ASCII,
+		expectedElements: &udh.MessageElements{
+			HeaderLength:  0,
+			Element:       0,
+			ElementLength: 0,
+			Reference:     []byte{0},
+			TotalParts:    0x01,
+			CurrentPart:   0x01,
+			Encoding:      udh.ASCII,
+			RawMessage:    []byte("world"),
+			Message:       "world",
+			Standalone:    true,
+		},
+		err: nil,
+	},
+	{
+		inputMessage: udh.Message("48656C6C6F"), // "Hello" in UTF-8
+		encoding:     udh.UTF8,
+		expectedElements: &udh.MessageElements{
+			HeaderLength:  0,
+			Element:       0,
+			ElementLength: 0,
+			Reference:     []byte{0},
+			TotalParts:    0x01,
+			CurrentPart:   0x01,
+			Encoding:      udh.UTF8,
+			RawMessage:    []byte("Hello"),
+			Message:       "Hello",
+			Standalone:    true,
+		},
+		err: nil,
+	},
 }
 
 func TestMessageParsing(t *testing.T) {
