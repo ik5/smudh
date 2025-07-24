@@ -23,7 +23,7 @@ const (
 	// gsm-7bit coding
 	GSM Encoding = iota
 
-	// ascii coding
+	// ASCII/IA5 coding
 	ASCII
 
 	// 8-bit binary coding
@@ -53,11 +53,23 @@ const (
 	// ISO-2022-JP (Music Codes)
 	ISO2022JP
 
+	// Not commonly used
+	Reserved1
+
+	// Not commonly used
+	Reserved2
+
 	// Extended Kanji JIS (X 0212-1990)
-	EXTJIS Encoding = 0x0D
+	EXTJIS
 
 	// KS C 5601
-	KSC5601 Encoding = 0x0E
+	KSC5601
+
+	//GSM 7-bit (extended) - GSM 7-bit with national language extensions
+	GSMEdtended
+
+	// support for UTF8 - hardly used
+	UTF8
 )
 
 // Message represents a hex-encoded SMS message
@@ -116,6 +128,8 @@ var (
 	ErrMissingPart                               = errors.New("missing part")
 	ErrInvalidReferenceNumber                    = errors.New("invalid reference number")
 	ErrUnsupportedIEI                            = errors.New("unsupported IEI")
+	ErrUnsupportedEncoding                       = errors.New("unsupported encoding")
+	ErrUnknownEncoding                           = errors.New("unknown encoding")
 )
 
 func (msg Message) ParseElements(encoding Encoding) (*MessageElements, error) {
@@ -166,9 +180,17 @@ func (msg Message) ParseElements(encoding Encoding) (*MessageElements, error) {
 		}
 	}
 
+	// TODO add support for all encodings
 	switch encoding {
-	case GSM:
+	case GSM, GSMEdtended:
 		elements.Message = gostrutils.GSM0338ToUTF8(string(elements.RawMessage))
+
+	case ASCII, Latin1, UTF8:
+		elements.Message = string(elements.RawMessage)
+
+	case Binary8Bit1, Binary8Bit2:
+		elements.Message = hex.EncodeToString(elements.RawMessage)
+
 	case UCS2:
 		if len(elements.RawMessage)%2 != 0 {
 			return nil, ErrBinaryTextLengthIsNotEvenForUTF16Decoding
@@ -182,6 +204,13 @@ func (msg Message) ParseElements(encoding Encoding) (*MessageElements, error) {
 		}
 
 		elements.Message = string(utf8Bytes)
+
+	case Cyrillic, Hebrew, JIS, ISO2022JP, EXTJIS, KSC5601, Pictogram:
+		// TODO: support these as well
+		return nil, ErrUnsupportedEncoding
+
+	default:
+		return nil, ErrUnknownEncoding
 	}
 
 	return &elements, nil
