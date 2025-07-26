@@ -1,4 +1,7 @@
-package udh
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+package smudh
 
 import (
 	"bytes"
@@ -11,6 +14,10 @@ import (
 	"sync"
 
 	"github.com/ik5/gostrutils"
+	"golang.org/x/text/encoding"
+	"golang.org/x/text/encoding/charmap"
+	"golang.org/x/text/encoding/japanese"
+	"golang.org/x/text/encoding/korean"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 )
@@ -118,32 +125,97 @@ func (msg Message) ParseElements(encoding Encoding) (*MessageElements, error) {
 	return &elements, nil
 }
 
+func (elem *MessageElements) setTransformCharmap(decoder *encoding.Decoder) error {
+	var (
+		err       error
+		reader    *transform.Reader
+		utf8Bytes []byte
+	)
+	reader = transform.NewReader(strings.NewReader(string(elem.RawMessage)), decoder)
+	utf8Bytes, err = io.ReadAll(reader)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	elem.Message = string(utf8Bytes)
+	return nil
+}
+
 func (elem *MessageElements) setMessage() error {
+	var (
+		decoder *encoding.Decoder
+		err     error
+	)
+
 	switch elem.Encoding {
-	case GSM, GSMEdtended:
+	case GSM, GSMExtended:
 		elem.Message = gostrutils.GSM0338ToUTF8(string(elem.RawMessage))
 
-	case ASCII, Latin1, UTF8:
+	case ASCII, UTF8:
 		elem.Message = string(elem.RawMessage)
+
+	case Latin1:
+		decoder = charmap.ISO8859_1.NewDecoder()
+
+		err = elem.setTransformCharmap(decoder)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
 
 	case Binary8Bit1, Binary8Bit2:
 		elem.Message = hex.EncodeToString(elem.RawMessage)
+		err = elem.setTransformCharmap(decoder)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
 
 	case UCS2:
 		if len(elem.RawMessage)%2 != 0 {
 			return ErrBinaryTextLengthIsNotEvenForUTF16Decoding
 		}
 
-		decoder := unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM).NewDecoder()
-		reader := transform.NewReader(strings.NewReader(string(elem.RawMessage)), decoder)
-		utf8Bytes, err := io.ReadAll(reader)
+		decoder = unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM).NewDecoder()
+		err = elem.setTransformCharmap(decoder)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
-		elem.Message = string(utf8Bytes)
+	case Cyrillic:
+		decoder = charmap.ISO8859_5.NewDecoder()
+		err = elem.setTransformCharmap(decoder)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
 
-	case Cyrillic, Hebrew, JIS, ISO2022JP, EXTJIS, KSC5601, Pictogram:
+	case Hebrew:
+		decoder = charmap.ISO8859_8.NewDecoder()
+		err = elem.setTransformCharmap(decoder)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+	case ISO2022JP:
+		decoder = japanese.ISO2022JP.NewDecoder()
+		err = elem.setTransformCharmap(decoder)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+	case KSC5601:
+		decoder = korean.EUCKR.NewDecoder()
+		err = elem.setTransformCharmap(decoder)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+	case JIS, EXTJIS:
+		decoder = japanese.EUCJP.NewDecoder()
+		err = elem.setTransformCharmap(decoder)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+	case Pictogram, Reserved1, Reserved2:
 		// TODO: support these as well
 		return ErrUnsupportedEncoding
 

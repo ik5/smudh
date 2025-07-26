@@ -1,11 +1,14 @@
-package udh_test
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+package smudh_test
 
 import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/ik5/udh"
+	udh "github.com/ik5/smudh"
 )
 
 type messageParsingTestFixtures struct {

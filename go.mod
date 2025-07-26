@@ -1,4 +1,4 @@
-module github.com/ik5/udh
+module github.com/ik5/smudh
 
 go 1.24.2
 
