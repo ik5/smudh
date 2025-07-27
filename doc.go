@@ -7,15 +7,15 @@ When the short_message field contains raw hexadecimal UDH, the package provides 
 
 UDH structure example:
 
-		0500030F030368656C6C6F20776F726C64
-	    | | | | | | |
-	    | | | | | | |- The text to use (hello world in ASCII/GSM03.38/UTF-8 encodings).
-	    | | | | | |- Current Part number (03 in this case)
-	    | | | | |- Total Parts (03 in this case)
-	    | | | |- Reference Number (can be either single or multi-byte long, 0F in this case)
-	    | | |- Element Length (for reference number)
-	    | |- Element (type)
-	    |- Header Length
+	0500030F030368656C6C6F20776F726C64
+	| | | | | | |
+	| | | | | | |- The text to use (hello world in ASCII/GSM03.38/UTF-8 encodings).
+	| | | | | |- Current Part number (03 in this case)
+	| | | | |- Total Parts (03 in this case)
+	| | | |- Reference Number (can be either single or multi-byte long, 0F in this case)
+	| | |- Element Length (for reference number)
+	| |- Element (type)
+	|- Header Length
 
 Standalone text example:
 
