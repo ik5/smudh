@@ -1,15 +1,17 @@
+package smudh
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
-package smudh
 
 import "fmt"
 
+// Encoding define a unique SMPP text encoding code.
 type Encoding byte
 
-// UDH Message Encoding
+// Encoding defines the encoding type for message content.
 const (
-	// gsm-7bit encoding
+	// GSM 7-bit encoding
 	GSM Encoding = iota
 
 	// ASCII/IA5 encoding
@@ -18,7 +20,7 @@ const (
 	// 8-bit binary encoding
 	Binary8Bit1
 
-	// iso-8859-1 encoding
+	// ISO-8859-1 encoding
 	Latin1
 
 	// 8-bit binary encoding
@@ -27,16 +29,16 @@ const (
 	// JIS (X 0208-1990) encoding
 	JIS
 
-	// iso-8859-5 encoding
+	// ISO-8859-5 encoding
 	Cyrillic
 
-	// iso-8859-8 encoding
+	// ISO-8859-8 encoding
 	Hebrew
 
 	// UCS2 (UTF-16BE) encoding
 	UCS2
 
-	// Pictogram - Cellular icons encoding support
+	// Cellular pictogram icons encoding support
 	Pictogram
 
 	// ISO-2022-JP (Music Codes) encoding
@@ -57,10 +59,11 @@ const (
 	//GSM 7-bit (extended) - GSM 7-bit with national language extensions
 	GSMExtended
 
-	// support for UTF8 - hardly used
+	// UTF-8 encoding (rarely used)
 	UTF8
 )
 
+// Returns the string representation of the Encoding type.
 func (enc Encoding) String() string {
 	switch enc {
 	case GSM:

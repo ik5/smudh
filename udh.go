@@ -1,7 +1,8 @@
+package smudh
+
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
-package smudh
 
 import (
 	"bytes"
@@ -22,46 +23,46 @@ import (
 	"golang.org/x/text/transform"
 )
 
-// Message represents a hex-encoded SMS message
+// Message represents a hex-encoded SMS message as a byte slice.
 type Message []byte
 
-// Elements for SMS based UDH single message.
-// This struct does not hold the protocol names, but rather it's uses
+// MessageElements represents a single parsed SMS message, either standalone or part of a UDH.
 type MessageElements struct {
-	// UDHL
+	// UDHL - UDH Length
 	HeaderLength byte `json:"header_length"`
 
 	// IEI (Information Element Identifier)
 	Element byte `json:"element"`
 
-	// IE Length
+	// IE Length (Length of reference number)
 	ElementLength byte `json:"element_length"`
 
-	// Reference Number
+	// Reference Number (single or multi-byte)
 	Reference []byte `json:"reference"`
 
-	// How many parts are there
+	// Total number of parts
 	TotalParts byte `json:"total_parts"`
 
-	// Current Part
+	// Current part number
 	CurrentPart byte `json:"current_part"`
 
-	// The actual message payload part
+	// Raw message payload
 	RawMessage []byte `json:"raw_message"`
 
 	// Decoded UTF-8 message
 	Message string `json:"message"`
 
-	// Encoding is not part of the UDH part
+	// Message encoding
 	Encoding Encoding `json:"encoding"`
 
-	// is this message stand alone (pure message)
+	// True if message is standalone
 	Standalone bool `json:"standalone"`
 }
 
-// MessageFragmentations hold all fragmented value of a given message
+// MessageFragmentations a slice container of MessageElements pointers - for fragmentation gathering for a specific message.
 type MessageFragmentations []*MessageElements
 
+// Messages manages a collection of message fragmentations, grouped by reference number.
 type Messages struct {
 	fragments map[string]*MessageFragmentations
 	mtx       sync.Mutex
@@ -69,6 +70,12 @@ type Messages struct {
 
 const rfc822Element byte = 0x20
 
+// ParseElements parses the hexadecimal content of a Message into its structural components, using the provided
+// encoding from the SMPP protocol.
+// On success, it returns a MessageElements struct.
+// For standalone text (no UDH), the Standalone flag is set to true, TotalParts and CurrentPart are set to 1, and
+// Reference is set to `0x00`.
+// Returns an error for invalid content.
 func (msg Message) ParseElements(encoding Encoding) (*MessageElements, error) {
 	if len(msg)%2 != 0 {
 		return nil, ErrHexStringMustHaveAnEvenNumberOfChars
@@ -117,7 +124,7 @@ func (msg Message) ParseElements(encoding Encoding) (*MessageElements, error) {
 		}
 	}
 
-	err = elements.setMessage()
+	err = elements.encodeMessage()
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
@@ -125,6 +132,8 @@ func (msg Message) ParseElements(encoding Encoding) (*MessageElements, error) {
 	return &elements, nil
 }
 
+// setTransformCharmap translates the given RawMessage based on a given decoder.
+// If successful, than the function sets the elem.Message, otherwise an error is returned.
 func (elem *MessageElements) setTransformCharmap(decoder *encoding.Decoder) error {
 	var (
 		err       error
@@ -141,7 +150,13 @@ func (elem *MessageElements) setTransformCharmap(decoder *encoding.Decoder) erro
 	return nil
 }
 
-func (elem *MessageElements) setMessage() error {
+// encodeMessage looks over the encoding element, and try to decode the RawMessage element accordingly.
+//
+// At this time the Pictogram encoding is not supported, as well as the Reserved1 and Reserved2 encoding.
+// If found, an error will return.
+// If the encoding is unknown, then an error is returned on that.
+// Any other error is based on the encoding decoder streaming.
+func (elem *MessageElements) encodeMessage() error {
 	var (
 		decoder *encoding.Decoder
 		err     error
@@ -227,10 +242,13 @@ func (elem *MessageElements) setMessage() error {
 	return nil
 }
 
+// IsSingleMessage returns true when message is standalone or is not fragmented.
 func (elem MessageElements) IsSingleMessage() bool {
 	return elem.Standalone || elem.TotalParts == 1
 }
 
+// ToJSON Serializes a MessageElements struct to JSON.
+// Returns an error if serialization fails.
 func (elem MessageElements) ToJSON() (string, error) {
 	result, err := json.Marshal(elem)
 
@@ -241,6 +259,8 @@ func (elem MessageElements) ToJSON() (string, error) {
 	return string(result), nil
 }
 
+// MessageElementFromJSON de-serializes a JSON string into a MessageElements struct.
+// Returns an error if the JSON is invalid.
 func MessageElementFromJSON(rawJSON string) (*MessageElements, error) {
 	var result MessageElements
 
@@ -252,6 +272,8 @@ func MessageElementFromJSON(rawJSON string) (*MessageElements, error) {
 	return &result, nil
 }
 
+// ToJSON serializes the MessageFragmentations slice to JSON.
+// Returns an error if serialization fails.
 func (msgs MessageFragmentations) ToJSON() (string, error) {
 	result, err := json.Marshal(msgs)
 
@@ -262,6 +284,7 @@ func (msgs MessageFragmentations) ToJSON() (string, error) {
 	return string(result), nil
 }
 
+// FromJSON de-serialize a JSON string into a MessageFragmentations slice. Returns an error if the JSON is invalid.
 func (msgs *MessageFragmentations) FromJSON(rawJSON string) error {
 	err := json.Unmarshal([]byte(rawJSON), msgs)
 	if err != nil {
@@ -272,6 +295,7 @@ func (msgs *MessageFragmentations) FromJSON(rawJSON string) error {
 
 }
 
+// Sort sorts the MessageFragmentations slice in ascending order based on CurrentPart.
 func (msgs MessageFragmentations) Sort() {
 	slices.SortFunc(msgs, func(a, b *MessageElements) int {
 		if b.Element > a.Element {
@@ -285,6 +309,7 @@ func (msgs MessageFragmentations) Sort() {
 	})
 }
 
+// HaveAllFragments returns true if the MessageFragmentations contains all parts of a fragmented message or is standalone.
 func (msgs MessageFragmentations) HaveAllFragments() bool {
 	msgsLen := len(msgs)
 	if msgsLen == 0 {
@@ -293,6 +318,10 @@ func (msgs MessageFragmentations) HaveAllFragments() bool {
 
 	first := msgs[0]
 
+	if first.Standalone {
+		return true
+	}
+
 	if first.TotalParts == 0 && first.CurrentPart == 0 && len(first.Message) > 0 {
 		return true
 	}
@@ -300,6 +329,9 @@ func (msgs MessageFragmentations) HaveAllFragments() bool {
 	return msgsLen == int(first.TotalParts)
 }
 
+// String returns a string representation of the full oredered MessageFragmentations.
+//
+// IMPORTANT: The function calls Sort method before collecting all of the messages.
 func (msgs *MessageFragmentations) String() string {
 	msgs.Sort()
 
@@ -312,6 +344,8 @@ func (msgs *MessageFragmentations) String() string {
 	return buffer.String()
 }
 
+// Add parses a raw Message using the specified encoding and appends the resulting MessageElements to the MessageFragmentations slice.
+// The method does not reorder elements. Returns an error if parsing fails.
 func (msgs *MessageFragmentations) Add(encoding Encoding, message Message) error {
 	info, err := message.ParseElements(encoding)
 	if err != nil {
@@ -326,6 +360,8 @@ func (msgs *MessageFragmentations) Add(encoding Encoding, message Message) error
 	return nil
 }
 
+// AddMessageElements appends a MessageElements instance to the MessageFragmentations slice.
+// The method does not reorder elements. Returns an error if addition fails.
 func (msgs *MessageFragmentations) AddMessageElements(info *MessageElements) error {
 	if len(*msgs) == 0 {
 		*msgs = append(*msgs, info)
@@ -342,6 +378,8 @@ func (msgs *MessageFragmentations) AddMessageElements(info *MessageElements) err
 	return ErrInvalidReferenceNumber
 }
 
+// Reference returns the reference number of the message fragments.
+// Returns nil if the slice is empty.
 func (msgs MessageFragmentations) Reference() []byte {
 	if len(msgs) == 0 {
 		return nil
@@ -351,6 +389,7 @@ func (msgs MessageFragmentations) Reference() []byte {
 	return first.Reference
 }
 
+// InitMessages	initializes and returns a new Messages instance.
 func InitMessages() *Messages {
 	messages := &Messages{
 		fragments: make(map[string]*MessageFragmentations),
@@ -360,6 +399,9 @@ func InitMessages() *Messages {
 	return messages
 }
 
+// AddMessageElements adds a MessageElements instance to the Messages container.
+// Returns an error if the addition is invalid.
+// The function does not re-order the elements.
 func (msgs *Messages) AddMessageElements(info *MessageElements) error {
 	msgs.mtx.Lock()
 	defer msgs.mtx.Unlock()
@@ -388,6 +430,9 @@ func (msgs *Messages) AddMessageElements(info *MessageElements) error {
 	return nil
 }
 
+// Add Parses a raw Message using the specified encoding and adds it to the Messages container.
+// Returns an error if parsing fails.
+// The function does not re-order the elements.
 func (msgs *Messages) Add(encoding Encoding, message Message) error {
 	msgs.mtx.Lock()
 	defer msgs.mtx.Unlock()
@@ -419,6 +464,8 @@ func (msgs *Messages) Add(encoding Encoding, message Message) error {
 	return nil
 }
 
+// GetMessageFragments retrieves the MessageFragmentations for a given reference number, returning an ordered slice.
+// Returns nil if the reference is not found.
 func (msgs *Messages) GetMessageFragments(reference []byte) *MessageFragmentations {
 	msgs.mtx.Lock()
 	defer msgs.mtx.Unlock()
@@ -428,9 +475,11 @@ func (msgs *Messages) GetMessageFragments(reference []byte) *MessageFragmentatio
 		return nil
 	}
 
+	messages.Sort()
 	return messages
 }
 
+// ListAll returns a slice of all MessageFragmentations in the Messages container, unsorted.
 func (msgs *Messages) ListAll() []*MessageFragmentations {
 	msgs.mtx.Lock()
 	defer msgs.mtx.Unlock()
