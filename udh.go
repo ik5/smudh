@@ -329,7 +329,7 @@ func (msgs MessageFragmentations) HaveAllFragments() bool {
 	return msgsLen == int(first.TotalParts)
 }
 
-// String returns a string representation of the full oredered MessageFragmentations.
+// String returns a string representation of the full ordered MessageFragmentations.
 //
 // IMPORTANT: The function calls Sort method before collecting all of the messages.
 func (msgs *MessageFragmentations) String() string {
